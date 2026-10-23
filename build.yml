@@ -1,0 +1,27 @@
+name: Build MaxOS
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: i386, flavour: 686-pae }
+          - { arch: amd64, flavour: amd64 }
+    container:
+      image: debian:bookworm
+      options: --privileged
+    steps:
+      - name: Instalar ferramentas
+        run: apt-get update && apt-get install -y git live-build ca-certificates xz-utils imagemagick fonts-dejavu-core
+      - uses: actions/checkout@v4
+      - name: Montar a ISO
+        run: bash build.sh ${{ matrix.arch }} ${{ matrix.flavour }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MaxOS-${{ matrix.arch }}
+          path: MaxOS-*.iso
