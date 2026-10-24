@@ -101,7 +101,8 @@ fgcolor=rgb(238,242,247)
 MAXEOF
 mkdir -p 'config/includes.chroot/etc/skel/.config/openbox'
 cat > 'config/includes.chroot/etc/skel/.config/openbox/autostart' <<'MAXEOF'
-feh --bg-fill /usr/share/backgrounds/maxos/wallpaper.png &
+feh --bg-fill "$(cat ~/.config/maxos/papel 2>/dev/null || echo /usr/share/backgrounds/maxos/wallpaper.png)" &
+[ -f ~/.config/maxos/teclado ] && setxkbmap $(cat ~/.config/maxos/teclado) &
 tint2 -c ~/.config/tint2/topo.tint2rc > /tmp/tint2-topo.log 2>&1 &
 tint2 -c ~/.config/tint2/titulo.tint2rc > /tmp/tint2-titulo.log 2>&1 &
 tint2 -c ~/.config/tint2/tint2rc > /tmp/tint2-lateral.log 2>&1 &
@@ -134,6 +135,7 @@ launcher_item_app = /usr/share/applications/maxos-pasta.desktop
 launcher_item_app = /usr/share/applications/maxos-musica.desktop
 launcher_item_app = /usr/share/applications/maxos-video.desktop
 launcher_item_app = /usr/share/applications/maxos-config.desktop
+launcher_item_app = /usr/share/applications/maxos-oto.desktop
 launcher_item_app = /usr/share/applications/maxos-sair.desktop
 launcher_item_app = /usr/share/applications/maxos-apps.desktop
 
@@ -232,7 +234,7 @@ cat > 'config/includes.chroot/usr/share/applications/maxos-config.desktop' <<'MA
 [Desktop Entry]
 Type=Application
 Name=Configuracoes
-Exec=obconf
+Exec=maxos-config
 Icon=/usr/share/maxos/icons/config.png
 MAXEOF
 mkdir -p 'config/includes.chroot/usr/share/applications'
@@ -402,9 +404,10 @@ cat > "$C/etc/skel/.config/openbox/menu.xml" <<'MAXEOF'
 <openbox_menu xmlns="http://openbox.org/3.4/menu">
 <menu id="root-menu" label="MaxOS">
   <item label="Terminal"><action name="Execute"><command>lxterminal</command></action></item>
+  <item label="Oto (assistente)"><action name="Execute"><command>oto</command></action></item>
   <item label="Arquivos"><action name="Execute"><command>pcmanfm</command></action></item>
   <item label="Navegador"><action name="Execute"><command>netsurf-gtk</command></action></item>
-  <item label="Configurações"><action name="Execute"><command>obconf</command></action></item>
+  <item label="Configurações"><action name="Execute"><command>maxos-config</command></action></item>
   <separator/>
   <item label="Diagnóstico"><action name="Execute"><command>lxterminal -e maxos-diagnostico</command></action></item>
   <item label="Recarregar interface"><action name="Reconfigure"/></item>
@@ -457,6 +460,196 @@ Name=MaxOS
 Exec=pcmanfm
 Icon=/usr/share/maxos/icons/logo.png
 MAXEOF
+
+# ---- Programação, jogos, Oto e configurações ----
+cat > config/package-lists/programacao.list.chroot <<'MAXEOF'
+sudo
+git
+build-essential
+cmake
+gdb
+clang
+nasm
+python3
+python3-pip
+python3-venv
+python3-tk
+python3-dev
+nodejs
+npm
+sqlite3
+neovim
+geany
+curl
+wget
+openssh-client
+espeak-ng
+gamemode
+mesa-utils
+mesa-vulkan-drivers
+vulkan-tools
+libgl1-mesa-dri
+zram-tools
+earlyoom
+MAXEOF
+mkdir -p "$C/etc/sysctl.d" "$C/etc/default"
+cat > "$C/etc/sysctl.d/99-maxos.conf" <<'MAXEOF'
+vm.swappiness=30
+vm.vfs_cache_pressure=50
+kernel.nmi_watchdog=0
+MAXEOF
+cat > "$C/etc/default/zramswap" <<'MAXEOF'
+ALGO=zstd
+PERCENT=50
+PRIORITY=100
+MAXEOF
+cat > "$C/usr/local/bin/maxos-config" <<'MAXEOF'
+#!/usr/bin/env python3
+# Central de Configurações do MaxOS
+import os, subprocess, tkinter as tk
+from tkinter import ttk, filedialog
+
+CFG = os.path.expanduser("~/.config/maxos"); os.makedirs(CFG, exist_ok=True)
+PADRAO = "/usr/share/backgrounds/maxos/wallpaper.png"
+def sh(c): subprocess.Popen(c, shell=True)
+def run(c):
+    try: return subprocess.run(c, shell=True, capture_output=True, text=True, timeout=10).stdout.strip()
+    except Exception: return ""
+def grava(nome, v): open(os.path.join(CFG, nome), "w").write(v)
+
+r = tk.Tk(); r.title("Configurações do MaxOS"); r.geometry("460x420"); r.configure(bg="#000")
+st = ttk.Style(r); st.theme_use("clam")
+st.configure(".", background="#000", foreground="#eef2f7", fieldbackground="#000", font=("DejaVu Sans", 10))
+st.configure("TNotebook", background="#000", borderwidth=0)
+st.configure("TNotebook.Tab", background="#0b1830", foreground="#eef2f7", padding=(12, 6))
+st.map("TNotebook.Tab", background=[("selected", "#4aa3ff")], foreground=[("selected", "#000")])
+st.configure("TButton", background="#101a2c", foreground="#eef2f7", padding=8)
+st.map("TButton", background=[("active", "#4aa3ff")], foreground=[("active", "#000")])
+nb = ttk.Notebook(r); nb.pack(fill="both", expand=True, padx=8, pady=8)
+def aba(t):
+    f = ttk.Frame(nb, padding=14); nb.add(f, text=t); return f
+def btn(f, t, c): ttk.Button(f, text=t, command=c).pack(fill="x", pady=4)
+
+# Aparência
+a = aba("Aparência")
+ttk.Label(a, text="Papel de parede").pack(anchor="w")
+def escolhe():
+    p = filedialog.askopenfilename(title="Escolha uma imagem", filetypes=[("Imagens", "*.png *.jpg *.jpeg")])
+    if p: grava("papel", p); sh('feh --bg-fill "%s"' % p)
+def padrao():
+    grava("papel", PADRAO); sh('feh --bg-fill "%s"' % PADRAO)
+btn(a, "Escolher imagem...", escolhe); btn(a, "Voltar ao padrão do MaxOS", padrao)
+
+# Desempenho
+d = aba("Desempenho")
+info = tk.StringVar(); ttk.Label(d, textvariable=info, justify="left").pack(anchor="w", pady=4)
+def atualiza():
+    g = run("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null") or "indisponível nesta máquina"
+    ram = run("free -m | awk '/Mem/{print $3\" / \"$2\" MB\"}'")
+    zr = "ativo" if "zram" in run("cat /proc/swaps") else "inativo"
+    info.set("Modo do processador: %s\nMemória em uso: %s\nMemória comprimida (zram): %s" % (g, ram, zr))
+def gov(g):
+    sh("echo %s | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor >/dev/null" % g)
+    r.after(800, atualiza)
+btn(d, "Ativar Modo Jogo (desempenho máximo)", lambda: gov("performance"))
+btn(d, "Modo normal (economia)", lambda: gov("schedutil"))
+ttk.Label(d, text="Dica: para abrir um jogo com mais desempenho,\nuse no terminal:  gamemoderun nome-do-jogo", justify="left").pack(anchor="w", pady=10)
+atualiza()
+
+# Teclado
+k = aba("Teclado")
+def teclado(l): grava("teclado", l); sh("setxkbmap " + l)
+btn(k, "Brasil (ABNT2)", lambda: teclado("br")); btn(k, "EUA (para teste pelo celular)", lambda: teclado("us"))
+
+# Sistema
+s = aba("Sistema")
+btn(s, "Recarregar interface", lambda: sh("openbox --reconfigure"))
+btn(s, "Configurações de janelas (avançado)", lambda: sh("obconf"))
+btn(s, "Diagnóstico", lambda: sh("lxterminal -e maxos-diagnostico"))
+btn(s, "Abrir terminal", lambda: sh("lxterminal"))
+r.mainloop()
+MAXEOF
+chmod +x "$C/usr/local/bin/maxos-config"
+cat > "$C/usr/local/bin/oto" <<'MAXEOF'
+#!/usr/bin/env python3
+# Oto: assistente virtual do MaxOS (esqueleto)
+import os, json, queue, subprocess, threading, urllib.request, datetime
+import tkinter as tk
+from tkinter import scrolledtext, simpledialog
+
+DIR = os.path.expanduser("~/.config/oto"); os.makedirs(DIR, exist_ok=True)
+ARQ_CHAVE = os.path.join(DIR, "chave")
+MODELO = "claude-haiku-5-5"
+SISTEMA = "Você é o Oto, o assistente virtual do sistema MaxOS. Responda sempre em português do Brasil, de forma curta e útil."
+hist = []; fila = queue.Queue()
+
+def chave():
+    try: return open(ARQ_CHAVE).read().strip()
+    except Exception: return ""
+
+def local(t):
+    t = t.lower()
+    if "hora" in t: return "Agora são " + datetime.datetime.now().strftime("%H:%M") + "."
+    for pal, cmd, nome in (("terminal", "lxterminal", "o terminal"), ("navegador", "netsurf-gtk", "o navegador"),
+                           ("arquivos", "pcmanfm", "os arquivos"), ("configura", "maxos-config", "as configurações")):
+        if "abr" in t and pal in t:
+            subprocess.Popen(cmd, shell=True); return "Abrindo " + nome + "."
+    if "modo jogo" in t:
+        subprocess.Popen("echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor >/dev/null", shell=True)
+        return "Modo Jogo ativado."
+    return None
+
+def nuvem(t):
+    k = chave()
+    if not k: return "Para conversar comigo, toque em Chave e cole sua chave da API."
+    hist.append({"role": "user", "content": t})
+    corpo = json.dumps({"model": MODELO, "max_tokens": 400, "system": SISTEMA, "messages": hist[-12:]}).encode()
+    req = urllib.request.Request("https://api.anthropic.com/v1/messages", corpo, {
+        "x-api-key": k, "anthropic-version": "2023-06-01", "content-type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=60) as x:
+            txt = json.load(x)["content"][0]["text"]
+        hist.append({"role": "assistant", "content": txt}); return txt
+    except Exception as e:
+        hist.pop(); return "Não consegui falar com a nuvem (%s). Confira a internet e a chave." % e
+
+def responde(t):
+    fila.put(local(t) or nuvem(t))
+
+r = tk.Tk(); r.title("Oto"); r.geometry("440x520"); r.configure(bg="#000")
+caixa = scrolledtext.ScrolledText(r, bg="#000", fg="#eef2f7", font=("DejaVu Sans", 10), wrap="word", state="disabled", borderwidth=0)
+caixa.pack(fill="both", expand=True, padx=8, pady=8)
+voz = tk.BooleanVar(value=False)
+def mostra(q, txt):
+    caixa.configure(state="normal"); caixa.insert("end", q + txt + "\n\n"); caixa.configure(state="disabled"); caixa.see("end")
+def envia(_=None):
+    t = ent.get().strip()
+    if not t: return
+    ent.delete(0, "end"); mostra("Você: ", t)
+    threading.Thread(target=responde, args=(t,), daemon=True).start()
+def poll():
+    while not fila.empty():
+        m = fila.get(); mostra("Oto: ", m)
+        if voz.get(): subprocess.Popen(["espeak-ng", "-v", "pt-br", m])
+    r.after(200, poll)
+def pede_chave():
+    c = simpledialog.askstring("Chave da API", "Cole sua chave:", parent=r)
+    if c: open(ARQ_CHAVE, "w").write(c.strip()); os.chmod(ARQ_CHAVE, 0o600)
+rod = tk.Frame(r, bg="#000"); rod.pack(fill="x", padx=8, pady=(0, 8))
+ent = tk.Entry(rod, bg="#0b1830", fg="#eef2f7", insertbackground="#fff", borderwidth=0); ent.pack(side="left", fill="x", expand=True, ipady=6)
+ent.bind("<Return>", envia); ent.focus()
+tk.Button(rod, text="Enviar", command=envia, bg="#4aa3ff", borderwidth=0).pack(side="left", padx=4)
+tk.Button(rod, text="Chave", command=pede_chave, bg="#101a2c", fg="#eef2f7", borderwidth=0).pack(side="left")
+tk.Checkbutton(rod, text="Voz", variable=voz, bg="#000", fg="#eef2f7", selectcolor="#000", activebackground="#000").pack(side="left", padx=4)
+mostra("Oto: ", "Oi! Eu sou o Oto. Peça para abrir o terminal, ver a hora ou ativar o modo jogo, ou converse comigo.")
+poll(); r.mainloop()
+MAXEOF
+chmod +x "$C/usr/local/bin/oto"
+printf '[Desktop Entry]\nType=Application\nName=Oto\nExec=oto\nIcon=/usr/share/maxos/icons/oto.png\n' > "$C/usr/share/applications/maxos-oto.desktop"
+base64 -d > "$C/usr/share/maxos/icons/oto.png" <<'B64'
+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
+B64
+
 cp "$HERE/fundo.png" $C/usr/share/backgrounds/maxos/wallpaper.png
 
 lb config \
