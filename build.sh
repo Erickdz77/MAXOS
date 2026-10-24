@@ -1,11 +1,20 @@
 #!/bin/bash
 # MaxOS: script único. Cria toda a configuração e monta a ISO.
-# Uso: bash build.sh <i386|amd64> <686-pae|amd64>   (precisa do arquivo logo.png ao lado)
+# Uso: bash build.sh <i386|amd64> <686-pae|amd64>   (precisa do arquivo fundo.png ao lado)
 set -e
 ARCH="${1:-amd64}"; FLAVOUR="${2:-amd64}"
 HERE="$(pwd)"
 C=config/includes.chroot
 mkdir -p config/package-lists $C/usr/share/backgrounds/maxos
+mkdir -p 'config/hooks/normal'
+cat > 'config/hooks/normal/0100-maxos.hook.chroot' <<'MAXEOF'
+#!/bin/sh
+mkdir -p /etc/skel/.config/openbox
+cp /etc/xdg/openbox/rc.xml /etc/skel/.config/openbox/rc.xml
+sed -i 's#</applications>#<application class="Lxterminal"><position force="yes"><x>90</x><y>-60</y></position></application>\n</applications>#' /etc/skel/.config/openbox/rc.xml
+sed -i 's/^PRETTY_NAME=.*/PRETTY_NAME="MaxOS 1.0"/' /etc/os-release
+MAXEOF
+chmod +x 'config/hooks/normal/0100-maxos.hook.chroot'
 mkdir -p 'config/includes.chroot/etc'
 cat > 'config/includes.chroot/etc/issue' <<'MAXEOF'
 MaxOS 1.0 (Debian 12)
@@ -25,7 +34,7 @@ mkdir -p 'config/includes.chroot/etc/skel/.config/conky'
 cat > 'config/includes.chroot/etc/skel/.config/conky/conky.conf' <<'MAXEOF'
 conky.config = {
   alignment = 'top_right',
-  gap_x = 30, gap_y = 40,
+  gap_x = 30, gap_y = 56,
   minimum_width = 240, maximum_width = 240,
   own_window = true, own_window_type = 'desktop',
   own_window_transparent = true,
@@ -46,6 +55,25 @@ DISCO ${fs_used_perc /}%
 ${fs_bar 5 /}
 ]]
 MAXEOF
+mkdir -p 'config/includes.chroot/etc/skel/.config/conky'
+cat > 'config/includes.chroot/etc/skel/.config/conky/marca.conf' <<'MAXEOF'
+conky.config = {
+  alignment = 'bottom_right',
+  gap_x = 30, gap_y = 30,
+  minimum_width = 240, maximum_width = 240,
+  own_window = true, own_window_type = 'desktop',
+  own_window_transparent = true,
+  own_window_hints = 'undecorated,below,sticky,skip_taskbar,skip_pager',
+  double_buffer = true, update_interval = 60,
+  use_xft = true, font = 'DejaVu Sans:size=9',
+  default_color = '8a95a5', draw_shades = false, draw_borders = false,
+}
+conky.text = [[
+${alignr}MAXOS
+${alignr}CUSTOM DISTRIBUTION
+${alignr}v1.0
+]]
+MAXEOF
 mkdir -p 'config/includes.chroot/etc/skel/.config/gtk-3.0'
 cat > 'config/includes.chroot/etc/skel/.config/gtk-3.0/settings.ini' <<'MAXEOF'
 [Settings]
@@ -57,44 +85,81 @@ mkdir -p 'config/includes.chroot/etc/skel/.config/lxterminal'
 cat > 'config/includes.chroot/etc/skel/.config/lxterminal/lxterminal.conf' <<'MAXEOF'
 [general]
 fontname=DejaVu Sans Mono 11
-bgcolor=rgb(2,4,10)
+bgcolor=rgb(0,0,0)
 fgcolor=rgb(238,242,247)
 MAXEOF
 mkdir -p 'config/includes.chroot/etc/skel/.config/openbox'
 cat > 'config/includes.chroot/etc/skel/.config/openbox/autostart' <<'MAXEOF'
 feh --bg-fill /usr/share/backgrounds/maxos/wallpaper.png &
-tint2 &
+tint2 -c ~/.config/tint2/topo.tint2rc &
+tint2 -c ~/.config/tint2/tint2rc &
 conky -c ~/.config/conky/conky.conf &
+conky -c ~/.config/conky/marca.conf &
 nm-applet &
 volumeicon &
+lxterminal --geometry=66x20 &
 MAXEOF
 mkdir -p 'config/includes.chroot/etc/skel/.config/tint2'
 cat > 'config/includes.chroot/etc/skel/.config/tint2/tint2rc' <<'MAXEOF'
-panel_items = LT
+panel_items = L
 panel_monitor = all
 panel_position = center left vertical
-panel_size = 56 100%
-panel_margin = 0 0
-panel_padding = 8 12 8
+panel_size = 64 100%
+panel_margin = 0 34
+panel_padding = 0 14 0
 panel_background_id = 1
 panel_layer = top
-launcher_padding = 4 8 8
-launcher_icon_size = 32
+strut_policy = follow_size
+launcher_padding = 12 0 16
+launcher_background_id = 0
+launcher_icon_size = 38
 launcher_item_app = /usr/share/applications/pcmanfm.desktop
 launcher_item_app = /usr/share/applications/netsurf-gtk.desktop
 launcher_item_app = /usr/share/applications/lxterminal.desktop
+launcher_item_app = /usr/share/applications/obconf.desktop
 launcher_item_app = /usr/share/applications/maxos-sair.desktop
-time1_format = %H:%M
-time1_font = DejaVu Sans 9
-clock_font_color = #ffffff 100
+
 rounded = 0
 border_width = 1
-background_color = #070b12 100
-border_color = #ffffff 25
-background_color_hover = #ffffff 20
-border_color_hover = #ffffff 25
-background_color_pressed = #ffffff 30
-border_color_pressed = #ffffff 25
+border_sides = R
+background_color = #000000 100
+border_color = #ffffff 30
+MAXEOF
+mkdir -p 'config/includes.chroot/etc/skel/.config/tint2'
+cat > 'config/includes.chroot/etc/skel/.config/tint2/topo.tint2rc' <<'MAXEOF'
+panel_items = P:SC
+panel_monitor = all
+panel_position = top center horizontal
+panel_size = 100% 34
+panel_margin = 0 0
+panel_padding = 14 0 8
+panel_background_id = 1
+panel_layer = top
+strut_policy = follow_size
+
+execp = new
+execp_command = echo "M A X   O S"
+execp_interval = 0
+execp_font = DejaVu Sans Bold 10
+execp_font_color = #ffffff 100
+execp_padding = 0 0
+execp_background_id = 0
+
+systray_padding = 4 4 8
+systray_background_id = 0
+systray_icon_size = 20
+
+time1_format = %H:%M
+time1_font = DejaVu Sans 10
+clock_font_color = #ffffff 100
+clock_padding = 10 0
+clock_background_id = 0
+
+rounded = 0
+border_width = 1
+border_sides = B
+background_color = #000000 100
+border_color = #ffffff 30
 MAXEOF
 mkdir -p 'config/includes.chroot/usr/share/applications'
 cat > 'config/includes.chroot/usr/share/applications/maxos-sair.desktop' <<'MAXEOF'
@@ -130,13 +195,7 @@ firmware-linux-free
 firmware-misc-nonfree
 MAXEOF
 
-# Logo e papel de parede (gerado a partir do logo.png)
-cp "$HERE/logo.png" $C/usr/share/backgrounds/maxos/logo.png
-convert -size 1366x768 radial-gradient:'#0b1830-#02040a' \
-  \( "$HERE/logo.png" -resize 300x300 \) -gravity center -geometry +0-30 -composite \
-  -font DejaVu-Sans -pointsize 16 -fill '#8a95a5' -gravity south \
-  -annotate +0+60 'FOCO   •   DISCIPLINA   •   EVOLUÇÃO' \
-  $C/usr/share/backgrounds/maxos/wallpaper.png
+cp "$HERE/fundo.png" $C/usr/share/backgrounds/maxos/wallpaper.png
 
 lb config \
   --distribution bookworm \
