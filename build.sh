@@ -393,7 +393,9 @@ lb config \
 
 # Tela do menu de boot com a identidade do MaxOS
 if [ -d /usr/share/live/build/bootloaders/isolinux ]; then
-  cp -r /usr/share/live/build/bootloaders config/bootloaders
+  mkdir -p config/bootloaders
+  cp -rL /usr/share/live/build/bootloaders/. config/bootloaders/
+  mkdir -p config/bootloaders/isolinux
   rm -f config/bootloaders/isolinux/splash.png config/bootloaders/isolinux/splash.svg
   cp /tmp/maxos-splash.png config/bootloaders/isolinux/splash.png
   B=$(base64 -w0 /tmp/maxos-splash.png)
