@@ -103,6 +103,7 @@ mkdir -p 'config/includes.chroot/etc/skel/.config/openbox'
 cat > 'config/includes.chroot/etc/skel/.config/openbox/autostart' <<'MAXEOF'
 feh --bg-fill "$(cat ~/.config/maxos/papel 2>/dev/null || echo /usr/share/backgrounds/maxos/wallpaper.png)" &
 [ -f ~/.config/maxos/teclado ] && setxkbmap $(cat ~/.config/maxos/teclado) &
+maxos-fundo &
 tint2 -c ~/.config/tint2/topo.tint2rc > /tmp/tint2-topo.log 2>&1 &
 tint2 -c ~/.config/tint2/titulo.tint2rc > /tmp/tint2-titulo.log 2>&1 &
 tint2 -c ~/.config/tint2/tint2rc > /tmp/tint2-lateral.log 2>&1 &
@@ -539,6 +540,17 @@ def escolhe():
 def padrao():
     grava("papel", PADRAO); sh('feh --bg-fill "%s"' % PADRAO)
 btn(a, "Escolher imagem...", escolhe); btn(a, "Voltar ao padrão do MaxOS", padrao)
+def anim_on():
+    try: return open(os.path.join(CFG, "animado")).read().strip() != "off"
+    except Exception: return True
+def alterna_anim():
+    novo = "off" if anim_on() else "on"; grava("animado", novo)
+    sh("maxos-fundo" if novo == "on" else "maxos-fundo --parar")
+    txt.set("Fundo animado: " + ("ligado" if novo == "on" else "desligado"))
+txt = tk.StringVar(value="Fundo animado: " + ("ligado" if anim_on() else "desligado"))
+ttk.Label(a, text="Fundo animado (somente 64 bits)").pack(anchor="w", pady=(12, 0))
+btn(a, "Ligar / desligar o fundo animado", alterna_anim)
+ttk.Label(a, textvariable=txt).pack(anchor="w")
 
 # Desempenho
 d = aba("Desempenho")
@@ -550,6 +562,7 @@ def atualiza():
     info.set("Modo do processador: %s\nMemória em uso: %s\nMemória comprimida (zram): %s" % (g, ram, zr))
 def gov(g):
     sh("echo %s | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor >/dev/null" % g)
+    sh("maxos-fundo --parar" if g == "performance" else ("maxos-fundo" if anim_on() else "true"))
     r.after(800, atualiza)
 btn(d, "Ativar Modo Jogo (desempenho máximo)", lambda: gov("performance"))
 btn(d, "Modo normal (economia)", lambda: gov("schedutil"))
@@ -596,6 +609,7 @@ def local(t):
             subprocess.Popen(cmd, shell=True); return "Abrindo " + nome + "."
     if "modo jogo" in t:
         subprocess.Popen("echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor >/dev/null", shell=True)
+        subprocess.Popen("maxos-fundo --parar", shell=True)
         return "Modo Jogo ativado."
     return None
 
@@ -650,7 +664,119 @@ base64 -d > "$C/usr/share/maxos/icons/oto.png" <<'B64'
 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
 B64
 
+
+cat > "$C/usr/local/bin/maxos-fundo" <<'MAXEOF'
+#!/usr/bin/env python3
+# Fundo animado do MaxOS (só existe na versão de 64 bits). Uso: maxos-fundo  |  maxos-fundo --parar
+import os, sys, signal, subprocess, tkinter as tk
+
+CFG = os.path.expanduser("~/.config/maxos"); os.makedirs(CFG, exist_ok=True)
+PID = os.path.join(CFG, "fundo.pid"); VIDEO = "/usr/share/maxos/fundo-animado.mp4"
+
+def para():
+    try: os.kill(int(open(PID).read()), signal.SIGTERM)
+    except Exception: pass
+
+para()
+if "--parar" in sys.argv: sys.exit(0)
+try: desligado = open(os.path.join(CFG, "animado")).read().strip() == "off"
+except Exception: desligado = False
+if desligado or not os.path.exists(VIDEO): sys.exit(0)   # sem vídeo (32 bits) = papel de parede estático
+open(PID, "w").write(str(os.getpid()))
+
+r = tk.Tk(); r.overrideredirect(True)
+w, h = r.winfo_screenwidth(), r.winfo_screenheight()
+r.geometry("%dx%d+0+0" % (w, h)); r.configure(bg="#000000"); r.update(); r.lower()
+mpv = subprocess.Popen(["mpv", "--no-terminal", "--no-audio", "--loop-file=inf", "--no-osc", "--input-conf=/dev/null",
+    "--no-input-default-bindings", "--input-vo-keyboard=no", "--input-cursor=no", "--cursor-autohide=no",
+    "--panscan=1.0", "--hwdec=auto-safe", "--vo=gpu,x11", "--wid=%d" % r.winfo_id(), VIDEO])
+def sair(*a):
+    try: mpv.terminate()
+    except Exception: pass
+    os._exit(0)
+signal.signal(signal.SIGTERM, sair)
+def vigia():
+    if mpv.poll() is not None: sair()      # mpv falhou: some o fundo animado e fica o estático
+    r.lower(); r.after(2000, vigia)
+r.after(2000, vigia); r.mainloop()
+MAXEOF
+chmod +x "$C/usr/local/bin/maxos-fundo"
+cat > /tmp/gerar_fundo.py <<'MAXEOF'
+#!/usr/bin/env python3
+# Gera o fundo animado do MaxOS (anel elétrico + chamas da fênix) a partir do fundo.png
+import sys, os, math, subprocess, shutil
+import numpy as np
+from PIL import Image, ImageFilter
+
+SRC, OUT = sys.argv[1], sys.argv[2]
+FPS, SEG = 24, 6; N = FPS*SEG
+im = Image.open(SRC).convert('RGB'); W0, H0 = im.size
+S0 = 580; cx0, cy0 = W0//2, H0//2-25
+f = 960.0/W0; W, H = 960, 540
+im = im.resize((W, H), Image.LANCZOS); cx, cy, R = cx0*f, cy0*H/H0, (S0/2)*f
+a = np.asarray(im).astype(np.float32)/255.0
+yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+rr = np.hypot(xx-cx, yy-cy); th = np.arctan2(yy-cy, xx-cx)
+disc = rr < R
+# fundo sem o disco central + camada do disco (anel e fênix)
+base = a.copy(); base[disc] = 0
+L = np.where(disc[..., None], a, 0.0)
+lum = L.mean(axis=2)
+# máscaras
+fenix = ((lum > 0.55) & (rr < 0.80*R)).astype(np.float32)
+anel = ((rr > 0.80*R) & (rr < R)).astype(np.float32)
+def blur(m, r):
+    img = Image.fromarray((np.clip(m, 0, 1)*255).astype(np.uint8))
+    return np.asarray(img.filter(ImageFilter.GaussianBlur(r))).astype(np.float32)/255.0
+fenix_b = blur(fenix, 2.0)
+brilho_anel = blur(L.mean(axis=2)*anel, 9)          # brilho em volta do anel
+interior = np.clip(1 - rr/(0.80*R), 0, 1)**1.5        # luz azul dentro da esfera
+RAMPA = np.array([[0,0,0],[8,24,110],[30,120,255],[170,225,255],[255,255,255]], np.float32)/255.0
+POS = np.array([0, .25, .55, .85, 1.0])
+def cor(i):
+    i = np.clip(i, 0, 1); out = np.zeros(i.shape+(3,), np.float32)
+    for c in range(3): out[..., c] = np.interp(i, POS, RAMPA[:, c])
+    return out
+def noise(x, y, t):
+    # ruído que se repete no tempo (t em 0..1), para o vídeo fechar o ciclo sem emenda
+    p = 2*math.pi*t
+    return (np.sin(x*0.045 + 2*p) + np.sin(y*0.037 - p + x*0.02) + np.sin((x+y)*0.021 + 3*p) + np.sin(x*0.09 - y*0.05 - 2*p))/4.0
+PASSOS, DY = 26, 3.2
+os.makedirs('quadros', exist_ok=True)
+for k in range(N):
+    t = k/N; p = 2*math.pi*t
+    pulso = 0.5+0.5*math.sin(p)
+    fogo = np.zeros((H, W), np.float32)
+    for s in range(1, PASSOS+1):
+        h = s/PASSOS
+        xs = xx + 14*h*noise(xx, yy-s*DY, t) + 5*h*np.sin(p*2+yy*0.05)
+        ys = yy + s*DY
+        xi = np.clip(xs.astype(np.int32), 0, W-1); yi = np.clip(ys.astype(np.int32), 0, H-1)
+        fogo += fenix_b[yi, xi]*(0.90**s)
+    fogo = fogo/8.4
+    borda = np.clip((R*0.97 - rr)/(R*0.12), 0, 1)
+    fogo = np.clip(fogo*1.15*(0.85+0.3*pulso), 0, 1)*(1 - fenix_b)*borda
+    chama = cor(fogo**0.8)*np.clip(fogo[..., None]*2.2, 0, 1)
+    pisca = 0.82 + 0.28*np.sin(3*th + 2*p) * np.sin(5*th - p) + 0.12*np.sin(7*th + 3*p)
+    anel_t = L*(1 - anel[..., None]) + L*anel[..., None]*np.clip(pisca, 0.4, 1.4)[..., None]
+    brilho = (brilho_anel*(0.35+0.55*pulso))[..., None]*np.array([0.20, 0.55, 1.0], np.float32)
+    luz = (interior*(0.10+0.12*pulso))[..., None]*np.array([0.15, 0.45, 1.0], np.float32)
+    q = np.clip(base + anel_t*disc[..., None] + brilho*(rr < R*1.12)[..., None] + luz*disc[..., None] + chama, 0, 1)
+    Image.fromarray((q*255).astype(np.uint8)).save('quadros/q%03d.png' % k)
+subprocess.check_call(['ffmpeg', '-y', '-loglevel', 'error', '-framerate', str(FPS), '-i', 'quadros/q%03d.png',
+    '-c:v', 'libx264', '-preset', 'slow', '-crf', '24', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', OUT])
+shutil.rmtree('quadros')
+MAXEOF
+
 cp "$HERE/fundo.png" $C/usr/share/backgrounds/maxos/wallpaper.png
+
+# Fundo animado: somente na versão de 64 bits (a de 32 bits fica com o papel de parede estático)
+if [ "$ARCH" = "amd64" ]; then
+  mkdir -p "$HERE/$C/usr/share/maxos"
+  ( apt-get install -y --no-install-recommends ffmpeg python3-numpy python3-pil \
+    && cd /tmp && rm -rf quadros && python3 /tmp/gerar_fundo.py "$HERE/fundo.png" "$HERE/$C/usr/share/maxos/fundo-animado.mp4" ) \
+    || echo "AVISO: fundo animado não foi gerado; seguindo com o papel de parede estático."
+fi
 
 lb config \
   --distribution bookworm \
