@@ -103,6 +103,7 @@ mkdir -p 'config/includes.chroot/etc/skel/.config/openbox'
 cat > 'config/includes.chroot/etc/skel/.config/openbox/autostart' <<'MAXEOF'
 feh --bg-fill /usr/share/backgrounds/maxos/wallpaper.png &
 tint2 -c ~/.config/tint2/topo.tint2rc > /tmp/tint2-topo.log 2>&1 &
+tint2 -c ~/.config/tint2/titulo.tint2rc > /tmp/tint2-titulo.log 2>&1 &
 tint2 -c ~/.config/tint2/tint2rc > /tmp/tint2-lateral.log 2>&1 &
 conky -c ~/.config/conky/conky.conf &
 conky -c ~/.config/conky/marca.conf &
@@ -144,32 +145,15 @@ border_color = #ffffff 45
 MAXEOF
 mkdir -p 'config/includes.chroot/etc/skel/.config/tint2'
 cat > 'config/includes.chroot/etc/skel/.config/tint2/topo.tint2rc' <<'MAXEOF'
-panel_items = PPFSBC
+panel_items = FSBC
 panel_monitor = all
 panel_position = top center horizontal
 panel_size = 100% 36
 panel_margin = 0 0
-panel_padding = 14 0 10
+panel_padding = 10 0 10
 panel_background_id = 1
 panel_layer = top
 strut_policy = follow_size
-
-button = new
-button_icon = /usr/share/maxos/icons/logo.png
-button_centered = 1
-button_padding = 0 0 0
-button_max_icon_size = 28
-button_lclick_command = pcmanfm
-button_background_id = 0
-
-execp = new
-execp_command = echo "M A X O S      │      >_"
-execp_interval = 0
-execp_font = JetBrains Mono 10
-execp_font_color = #ffffff 100
-execp_padding = 6 0
-execp_lclick_command = lxterminal
-execp_background_id = 0
 
 systray_padding = 4 4 10
 systray_background_id = 0
@@ -187,6 +171,38 @@ border_sides = B
 background_color = #000000 100
 border_color = #ffffff 45
 MAXEOF
+mkdir -p 'config/includes.chroot/etc/skel/.config/tint2'
+cat > 'config/includes.chroot/etc/skel/.config/tint2/titulo.tint2rc' <<'MAXEOF'
+panel_items = LC
+panel_monitor = all
+panel_position = top left horizontal
+panel_size = 330 36
+panel_margin = 66 0
+panel_padding = 0 0 6
+panel_background_id = 1
+panel_layer = top
+strut_policy = none
+
+launcher_padding = 4 4 0
+launcher_background_id = 0
+launcher_icon_size = 26
+launcher_item_app = /usr/share/applications/maxos-logo.desktop
+
+time1_format = M A X O S    │    >_
+time1_font = JetBrains Mono 10
+clock_font_color = #ffffff 100
+clock_padding = 8 0
+clock_background_id = 0
+clock_lclick_command = lxterminal
+
+rounded = 0
+border_width = 1
+border_sides = B
+background_color = #000000 100
+border_color = #ffffff 45
+MAXEOF
+mkdir -p 'config/includes.chroot/usr/share/applications'
+printf '[Desktop Entry]\nType=Application\nName=MaxOS\nExec=pcmanfm\nIcon=/usr/share/maxos/icons/logo.png\n' > 'config/includes.chroot/usr/share/applications/maxos-logo.desktop'
 mkdir -p 'config/includes.chroot/usr/share/applications'
 cat > 'config/includes.chroot/usr/share/applications/maxos-apps.desktop' <<'MAXEOF'
 [Desktop Entry]
@@ -433,6 +449,14 @@ read x
 MAXEOF
 chmod +x "$C/usr/local/bin/maxos-diagnostico"
 
+
+cat > "$C/usr/share/applications/maxos-logo.desktop" <<'MAXEOF'
+[Desktop Entry]
+Type=Application
+Name=MaxOS
+Exec=pcmanfm
+Icon=/usr/share/maxos/icons/logo.png
+MAXEOF
 cp "$HERE/fundo.png" $C/usr/share/backgrounds/maxos/wallpaper.png
 
 lb config \
